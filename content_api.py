@@ -22,7 +22,7 @@ def read(content_id, params = None):
 			params['api-key'] = cached_key
 		url = url + "?" + urllib.urlencode(params)
 
-	#logging.debug(url)
+	logging.debug(url)
 
 	cached_data = client.get(url)
 
@@ -31,8 +31,9 @@ def read(content_id, params = None):
 	result = fetch(url)
 
 	if not result.status_code == 200:
-		logging.warning("Content API read failed: %d" % result.status_code)
-		return None
+		logging.warning("Content API read failed: %s" % url)
+        logging.warning("Content API read failed: %d" % result.status_code)
+        return None
 
 	client.set(url, result.content, time = 60 * 15)
 
