@@ -17,6 +17,9 @@ import ophan
 import content_api
 import formats
 
+import json
+import urlparse
+
 jinja_environment = jinja2.Environment(
 	loader=jinja2.FileSystemLoader(os.path.join(os.path.dirname(__file__), "templates")))
 
@@ -35,44 +38,38 @@ def resolve_content(url):
 		return data.get('response', {}).get('content', {})
 	return None
 
-def read_ophan(section_id = None):
+def read_ophan(query_str=None):
 
-	client = memcache.Client()
+    client = memcache.Client()
 
-	last_read = client.get(section_id + ".epoch_seconds")
+    last_read = client.get(query_str + ".epoch_seconds")
 
-	if last_read and fresh(last_read): return
+    if last_read and fresh(last_read): return
+    ophan_json = ophan.popular(query_str)
 
-	ophan_json = None
+    if not ophan_json:
+        raise deferred.PermanentTaskFailure()
 
-	if section_id == 'all':
-		ophan_json = ophan.popular()
-	else:
-		ophan_json = ophan.popular(section_id = section_id)		
+    ophan_data = json.loads(ophan_json)
 
-	if not ophan_json:
-		raise deferred.PermanentTaskFailure()
+    resolved_stories = [resolve_content(entry['url']) for entry in ophan_data]
 
-	ophan_data = json.loads(ophan_json)
+    resolved_stories = [story for story in resolved_stories if not story == None]
 
-	resolved_stories = [resolve_content(entry['url']) for entry in ophan_data]
+    client = memcache.Client()
 
-	resolved_stories = [story for story in resolved_stories if not story == None]
+    base_key = 'all'
 
-	client = memcache.Client()
+    if query_str: base_key = query_str
 
-	base_key = 'all'
+    if len(resolved_stories) > 0:
+        client.set(base_key, json.dumps(resolved_stories))
+        client.set(base_key + '.epoch_seconds', time.time())
 
-	if section_id: base_key = section_id
+    logging.info("Updated data for section %s; listing %d stories" % (query_str, len(resolved_stories)))
 
-	if len(resolved_stories) > 0:
-		client.set(base_key, json.dumps(resolved_stories))
-		client.set(base_key + '.epoch_seconds', time.time())
-
-	logging.info("Updated data for section %s; listing %d stories" % (section_id, len(resolved_stories)))	
-
-def refresh_data(section_id):
-	deferred.defer(read_ophan, section_id = section_id)
+def refresh_data(query_str):
+	deferred.defer(read_ophan, query_str)
 
 class MainPage(webapp2.RequestHandler):
 	def get(self):
@@ -84,22 +81,24 @@ class MainPage(webapp2.RequestHandler):
 
 class MostViewed(webapp2.RequestHandler):
 	def get(self, section_id = None):
-		if not section_id: section_id = 'all'
+            if not section_id: section_id = 'all'
 
-		client = memcache.Client()
+            client = memcache.Client()
+            query_str = self.request.query_string
+            ophan_json = client.get(query_str)
+            if not ophan_json:
+                refresh_data(query_str)
+                ophan_json = "[]"
 
-		ophan_json = client.get(section_id)
-		
-		if not ophan_json:
-			refresh_data(section_id)
-			ophan_json = "[]"
+            last_read = client.get(section_id + ".epoch_seconds")
 
-		last_read = client.get(section_id + ".epoch_seconds")
+            if last_read and not fresh(last_read):
+                refresh_data(section_id)
 
-		if last_read and not fresh(last_read):
-			refresh_data(section_id)
+            headers.json(self.response)
+            headers.set_cache_headers(self.response, 60)
+            headers.set_cors_headers(self.response)
+            self.response.out.write(formats.jsonp(self.request, ophan_json))
 
-		headers.json(self.response)
-		headers.set_cache_headers(self.response, 60)
-		headers.set_cors_headers(self.response)
-		self.response.out.write(formats.jsonp(self.request, ophan_json))
+
+
