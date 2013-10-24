@@ -30,7 +30,7 @@ def popular(query_str):
 
     if query_str is not None:
 
-        append_url = "&" + query_str.replace("&callback=social", "")
+        append_url = "&" + query_str
 
     most_read_url = most_read_url + "?" + urllib.urlencode(params) + append_url
 
