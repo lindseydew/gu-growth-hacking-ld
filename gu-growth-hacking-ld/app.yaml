@@ -1,0 +1,19 @@
+application: gu-growth-hacking-ld
+version: 6
+runtime: python27
+api_version: 1
+threadsafe: true
+
+handlers:
+- url: /static
+  static_dir: static
+- url: /.*
+  script: app.app
+
+libraries:
+- name: jinja2
+  version: latest
+
+builtins:
+- deferred: on
+- remote_api: on
