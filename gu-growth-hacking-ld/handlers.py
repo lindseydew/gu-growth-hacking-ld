@@ -124,12 +124,21 @@ class EditorsPicks(webapp2.RequestHandler):
         key = edition
         content_json = client.get(key)
         logging.info("content from memcache with key %s" % key)
+
         if not content_json:
             logging.info("no content found in memcache")
             content_json = content_api.editors_picks(edition)
 
+        editors_picks = (json.loads(content_json)).get('response').get('editorsPicks')
+        
+        if editors_picks is None:
+            logging.warning("could not parse editorsPicks from the response body")
+            return_json = content_json   
+        else:
+            return_json = json.dumps(editors_picks)   
+
         headers.json(self.response)
         headers.set_cache_headers(self.response, 60)
         headers.set_cors_headers(self.response)
-        self.response.out.write(formats.jsonp(self.request, content_json))
+        self.response.out.write(formats.jsonp(self.request, return_json))
 
