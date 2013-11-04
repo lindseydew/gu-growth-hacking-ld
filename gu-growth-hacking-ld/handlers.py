@@ -86,6 +86,20 @@ def make_key(query_str):
                     str = str + "," + v + "&"
     return str[:-1]
 
+def generate_html(ophan_json):
+    ophan_json = json.loads(ophan_json)
+    if len(ophan_json) >= 3:
+        html =  "li class=picture><p class='thumbnail'><a href="+ophan_json[0]['webUrl']+">" +\
+                "<img src="+ophan_json[0]['fields']['thumbnail']+"></a></p><p><a href="+ophan_json[0]['webUrl']+">" + ophan_json[0]['fields']['headline']+"</a>" +\
+                "</p>"+ophan_json[0]['fields']['trailText']+"</li>"
+        i = 1        
+        while(i<3):
+           html = html +  "<li><a href="+ophan_json[i]['webUrl']+">"+ophan_json[i]['fields']['headline']+"</a></li>"       
+           i = i + 1  
+        return '<ul>' + html + '</ul>'       
+    else:
+        return None
+
 class MainPage(webapp2.RequestHandler):
 	def get(self):
 		template = jinja_environment.get_template('index.html')
@@ -98,24 +112,32 @@ class MostViewed(webapp2.RequestHandler):
 	def get(self):
             client = memcache.Client()
             query_str = self.request.query_string
-            key = 'all'
+            key = None
             if query_str:
                 key = make_key(query_str)
-
+            logging.info(key)    
+            if not key:
+                key = 'all'
+            logging.info(key)
             ophan_json = client.get(key)
             if not ophan_json:
                 refresh_data(key)
                 ophan_json = "[]"
 
             last_read = client.get(key + ".epoch_seconds")
-            logging.info(key)
             if last_read and not fresh(last_read):
                 refresh_data(key)
-
+            
             headers.json(self.response)
             headers.set_cache_headers(self.response, 60)
             headers.set_cors_headers(self.response)
-            self.response.out.write(formats.jsonp(self.request, ophan_json))
+
+            if 'view=html' in query_str:
+                html = generate_html(ophan_json)
+                self.response.write('<ul>' + html + '</ul>')
+            else:
+                self.response.out.write(formats.jsonp(self.request, ophan_json))
+
 
 class EditorsPicks(webapp2.RequestHandler):
     def get(self, edition):
