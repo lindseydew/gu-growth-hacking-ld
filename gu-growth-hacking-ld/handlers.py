@@ -96,9 +96,9 @@ def generate_html(ophan_json):
         while(i<3):
            html = html +  "<li><a href="+ophan_json[i]['webUrl']+">"+ophan_json[i]['fields']['headline']+"</a></li>"       
            i = i + 1  
-        return '<ul>' + html + '</ul>'       
+        return '"<ul>' + html + '</ul>"'
     else:
-        return None
+        return ""
 
 class MainPage(webapp2.RequestHandler):
 	def get(self):
@@ -134,7 +134,7 @@ class MostViewed(webapp2.RequestHandler):
 
             if 'view=html' in query_str:
                 html = generate_html(ophan_json)
-                self.response.write('<ul>' + html + '</ul>')
+                self.response.write(html)
             else:
                 self.response.out.write(formats.jsonp(self.request, ophan_json))
 
