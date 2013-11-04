@@ -89,7 +89,7 @@ def make_key(query_str):
 def generate_html(ophan_json):
     ophan_json = json.loads(ophan_json)
     if len(ophan_json) >= 3:
-        html =  "li class=picture><p class='thumbnail'><a href="+ophan_json[0]['webUrl']+">" +\
+        html =  "<li class=picture><p class='thumbnail'><a href="+ophan_json[0]['webUrl']+">" +\
                 "<img src="+ophan_json[0]['fields']['thumbnail']+"></a></p><p><a href="+ophan_json[0]['webUrl']+">" + ophan_json[0]['fields']['headline']+"</a>" +\
                 "</p>"+ophan_json[0]['fields']['trailText']+"</li>"
         i = 1        
